@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.db
+*.log
+.env
+.venv/
+.pytest_cache/
+data/books_raw.csv
+data/books_clean.csv
+data/books.db
