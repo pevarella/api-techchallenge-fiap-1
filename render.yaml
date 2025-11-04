@@ -15,3 +15,18 @@ services:
         value: "1"
       - key: PYTHON_VERSION
         value: "3.12.4"
+  - type: web
+    name: tech-challenge-books-dashboard
+    env: python
+    branch: main
+    plan: free
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0
+    autoDeploy: true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHON_VERSION
+        value: "3.12.4"
+      - key: API_BASE_URL
+        value: "https://tech-challenge-books-api-e11w.onrender.com"
