@@ -10,7 +10,9 @@
 
 **Documentação:** *Abaixo*
 
-Pipeline completo para captura, processamento e disponibilização dos dados de livros do site [books.toscrape.com](https://books.toscrape.com/), pensado para apoiar times de Ciência de Dados e Machine Learning.
+**Objetivo:** Pipeline completo para captura, processamento e disponibilização dos dados de livros do site [books.toscrape.com](https://books.toscrape.com/), pensado para apoiar times de Ciência de Dados e Machine Learning.
+
+**Stack:** FastAPI · Python 3.12 · SQLite · Streamlit · Prometheus · Docker · Pytest
 
 ## Visão Geral
 
@@ -129,16 +131,42 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 | POST | `/api/v1/auth/refresh` | Renovar o par de tokens |
 | GET | `/metrics` | Exposição das métricas Prometheus para scraping |
 
-### Exemplo de chamada
+## Exemplos de Requisições
 
-```bash
-curl http://localhost:8000/api/v1/books?limit=5
+### GET `/api/v1/health`
+
+**Request**
+
+```http
+GET /api/v1/health HTTP/1.1
+Host: localhost:8000
 ```
+
+**Response**
+
+```json
+{
+  "status": "ok",
+  "dataset_records": 1000,
+  "database_path": "data/books.db"
+}
+```
+
+### GET `/api/v1/books`
+
+**Request**
+
+```http
+GET /api/v1/books?limit=2 HTTP/1.1
+Host: localhost:8000
+```
+
+**Response**
 
 ```json
 {
   "total": 1000,
-  "limit": 5,
+  "limit": 2,
   "offset": 0,
   "items": [
     {
@@ -154,9 +182,378 @@ curl http://localhost:8000/api/v1/books?limit=5
       "description": "It's hard to imagine a world without A Light in the Attic...",
       "upc": "a897fe39b1053632",
       "stock": 22
+    },
+    {
+      "id": 2,
+      "title": "Tipping the Velvet",
+      "price": 53.74,
+      "currency": "GBP",
+      "rating": 1,
+      "availability": "In stock (20 available)",
+      "category": "Historical Fiction",
+      "product_page_url": "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html",
+      "image_url": "https://books.toscrape.com/media/cache/8e/8f/8e8ff7.jpg",
+      "description": "A rich historical drama...",
+      "upc": "bcdf5e66387ea613",
+      "stock": 20
     }
   ]
 }
+```
+
+### GET `/api/v1/books/{id}`
+
+**Request**
+
+```http
+GET /api/v1/books/1 HTTP/1.1
+Host: localhost:8000
+```
+
+**Response**
+
+```json
+{
+  "id": 1,
+  "title": "A Light in the Attic",
+  "price": 51.77,
+  "currency": "GBP",
+  "rating": 3,
+  "availability": "In stock (22 available)",
+  "category": "Poetry",
+  "product_page_url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+  "image_url": "https://books.toscrape.com/media/cache/5e/7f/5e7f75801f783b7ab5b2ab96e9a85f04.jpg",
+  "description": "It's hard to imagine a world without A Light in the Attic...",
+  "upc": "a897fe39b1053632",
+  "stock": 22
+}
+```
+
+### GET `/api/v1/books/search`
+
+**Request**
+
+```http
+GET /api/v1/books/search?title=light&category=Poetry HTTP/1.1
+Host: localhost:8000
+```
+
+**Response**
+
+```json
+[
+  {
+    "id": 1,
+    "title": "A Light in the Attic",
+    "price": 51.77,
+    "currency": "GBP",
+    "rating": 3,
+    "availability": "In stock (22 available)",
+    "category": "Poetry",
+    "product_page_url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+    "image_url": "https://books.toscrape.com/media/cache/5e/7f/5e7f75801f783b7ab5b2ab96e9a85f04.jpg",
+    "description": "It's hard to imagine a world without A Light in the Attic...",
+    "upc": "a897fe39b1053632",
+    "stock": 22
+  }
+]
+```
+
+### GET `/api/v1/books/top-rated`
+
+**Request**
+
+```http
+GET /api/v1/books/top-rated?limit=3 HTTP/1.1
+Host: localhost:8000
+```
+
+**Response**
+
+```json
+[
+  {
+    "id": 5,
+    "title": "Sharp Objects",
+    "price": 47.82,
+    "currency": "GBP",
+    "rating": 5,
+    "availability": "In stock (20 available)",
+    "category": "Mystery",
+    "product_page_url": "https://books.toscrape.com/catalogue/sharp-objects_997/index.html",
+    "image_url": "https://books.toscrape.com/media/cache/6e/5d/6e5d.jpg",
+    "description": "A haunting psychological thriller",
+    "upc": "e00eb4fd7b871a48",
+    "stock": 20
+  }
+]
+```
+
+### GET `/api/v1/books/price-range`
+
+**Request**
+
+```http
+GET /api/v1/books/price-range?min=20&max=30 HTTP/1.1
+Host: localhost:8000
+```
+
+**Response**
+
+```json
+[
+  {
+    "id": 120,
+    "title": "The Requiem Red",
+    "price": 22.65,
+    "currency": "GBP",
+    "rating": 2,
+    "availability": "In stock (19 available)",
+    "category": "Thriller",
+    "product_page_url": "https://books.toscrape.com/catalogue/the-requiem-red_995/index.html",
+    "image_url": "https://books.toscrape.com/media/cache/60/e2/60e2.jpg",
+    "description": "Gothic suspense meets chilling mystery.",
+    "upc": "b7d11e2d0f7b9ef1",
+    "stock": 19
+  }
+]
+```
+
+### GET `/api/v1/categories`
+
+**Request**
+
+```http
+GET /api/v1/categories HTTP/1.1
+Host: localhost:8000
+```
+
+**Response**
+
+```json
+{
+  "total": 50,
+  "items": [
+    "Travel",
+    "Mystery",
+    "Historical Fiction",
+    "Poetry"
+  ]
+}
+```
+
+### GET `/api/v1/stats/overview`
+
+**Request**
+
+```http
+GET /api/v1/stats/overview HTTP/1.1
+Host: localhost:8000
+```
+
+**Response**
+
+```json
+{
+  "total_books": 1000,
+  "average_price": 35.42,
+  "average_rating": 3.2,
+  "min_price": 10.0,
+  "max_price": 59.99
+}
+```
+
+### GET `/api/v1/stats/categories`
+
+**Request**
+
+```http
+GET /api/v1/stats/categories HTTP/1.1
+Host: localhost:8000
+```
+
+**Response**
+
+```json
+{
+  "total": 4,
+  "items": [
+    {
+      "category": "Poetry",
+      "book_count": 19,
+      "average_price": 45.11,
+      "average_rating": 3.2
+    },
+    {
+      "category": "Mystery",
+      "book_count": 30,
+      "average_price": 33.87,
+      "average_rating": 4.1
+    }
+  ]
+}
+```
+
+### POST `/api/v1/auth/login`
+
+**Request**
+
+```http
+POST /api/v1/auth/login HTTP/1.1
+Host: localhost:8000
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "changeme"
+}
+```
+
+**Response**
+
+```json
+{
+  "token_type": "bearer",
+  "access_token": "eyJhbGciOi...",
+  "refresh_token": "eyJhbGciOi..."
+}
+```
+
+### POST `/api/v1/auth/refresh`
+
+**Request**
+
+```http
+POST /api/v1/auth/refresh HTTP/1.1
+Host: localhost:8000
+Content-Type: application/json
+
+{
+  "refresh_token": "eyJhbGciOi..."
+}
+```
+
+**Response**
+
+```json
+{
+  "token_type": "bearer",
+  "access_token": "eyJhbGciOi...",
+  "refresh_token": "eyJhbGciOi..."
+}
+```
+
+### GET `/api/v1/ml/features`
+
+**Request**
+
+```http
+GET /api/v1/ml/features HTTP/1.1
+Host: localhost:8000
+Authorization: Bearer eyJhbGciOi...
+```
+
+**Response**
+
+```json
+{
+  "total": 1000,
+  "items": [
+    {
+      "book_id": 1,
+      "title": "A Light in the Attic",
+      "category": "Poetry",
+      "price": 51.77,
+      "stock": 22,
+      "is_available": true,
+      "availability": "In stock (22 available)",
+      "title_length": 21,
+      "description_length": 120
+    }
+  ]
+}
+```
+
+### GET `/api/v1/ml/training-data`
+
+**Request**
+
+```http
+GET /api/v1/ml/training-data HTTP/1.1
+Host: localhost:8000
+Authorization: Bearer eyJhbGciOi...
+```
+
+**Response**
+
+```json
+{
+  "total": 1000,
+  "items": [
+    {
+      "book_id": 1,
+      "title": "A Light in the Attic",
+      "category": "Poetry",
+      "price": 51.77,
+      "stock": 22,
+      "is_available": true,
+      "availability": "In stock (22 available)",
+      "title_length": 21,
+      "description_length": 120,
+      "target_rating": 3
+    }
+  ]
+}
+```
+
+### POST `/api/v1/ml/predictions`
+
+**Request**
+
+```http
+POST /api/v1/ml/predictions HTTP/1.1
+Host: localhost:8000
+Authorization: Bearer eyJhbGciOi...
+Content-Type: application/json
+
+{
+  "model_name": "xgboost-recommender",
+  "model_version": "1.0.0",
+  "inputs": [
+    {"book_id": 1, "title": "A Light in the Attic"}
+  ],
+  "predictions": [4.3],
+  "metadata": {"roc_auc": 0.87}
+}
+```
+
+**Response**
+
+```json
+{
+  "id": 42,
+  "model_name": "xgboost-recommender",
+  "model_version": "1.0.0",
+  "created_at": "2024-08-30T18:12:54.327000"
+}
+```
+
+### GET `/metrics`
+
+**Request**
+
+```http
+GET /metrics HTTP/1.1
+Host: localhost:8000
+```
+
+**Response**
+
+```text
+# HELP http_requests_total Total HTTP requests
+# TYPE http_requests_total counter
+http_requests_total{method="GET",path="/api/v1/books",status="200"} 152
+http_request_duration_seconds_bucket{le="0.1",method="GET",path="/api/v1/books",status="200"} 120
 ```
 
 ## Autenticação JWT
