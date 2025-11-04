@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, Optional, Tuple
-
+import json
 import sqlite3
+from datetime import datetime
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 
 def row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
@@ -175,3 +176,27 @@ def books_in_price_range(
         (min_price, max_price),
     )
     return [row_to_dict(row) for row in cursor.fetchall()]
+
+
+def get_all_books(connection: sqlite3.Connection) -> Iterable[Dict[str, Any]]:
+    cursor = connection.execute("SELECT * FROM books ORDER BY id ASC")
+    return [row_to_dict(row) for row in cursor.fetchall()]
+
+
+def store_prediction_record(connection: sqlite3.Connection, payload: Dict[str, Any]) -> Dict[str, Any]:
+    timestamp = payload.get("created_at") or datetime.utcnow().isoformat()
+    persisted_payload = {**payload, "created_at": timestamp}
+    cursor = connection.execute(
+        """
+        INSERT INTO model_predictions (model_name, model_version, created_at, payload)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            persisted_payload.get("model_name"),
+            persisted_payload.get("model_version"),
+            timestamp,
+            json.dumps(persisted_payload),
+        ),
+    )
+    connection.commit()
+    return {"id": int(cursor.lastrowid), "created_at": timestamp}

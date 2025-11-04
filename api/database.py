@@ -35,6 +35,21 @@ CREATE_INDICES_SQL = (
     "CREATE INDEX IF NOT EXISTS idx_books_title ON books(title);",
 )
 
+CREATE_PREDICTIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS model_predictions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    model_name TEXT NOT NULL,
+    model_version TEXT,
+    created_at TEXT NOT NULL,
+    payload TEXT NOT NULL
+);
+"""
+
+CREATE_PREDICTIONS_INDICES_SQL = (
+    "CREATE INDEX IF NOT EXISTS idx_predictions_model_name ON model_predictions(model_name);",
+    "CREATE INDEX IF NOT EXISTS idx_predictions_created_at ON model_predictions(created_at);",
+)
+
 CSV_REQUIRED_COLUMNS = (
     "id",
     "title",
@@ -64,6 +79,8 @@ def ensure_database(settings: Settings) -> None:
 
     if db_path.exists():
         LOGGER.debug("SQLite database already present at %s", db_path)
+        with get_connection(db_path) as connection:
+            _ensure_schema(connection)
         return
 
     if not csv_path.exists():
@@ -120,21 +137,33 @@ def _read_rows_from_csv(csv_path: Path) -> Iterable[Dict[str, object]]:
 
 def _write_rows_to_db(rows: Iterable[Dict[str, object]], db_path: Path) -> None:
     with get_connection(db_path) as connection:
-        cursor = connection.cursor()
-        cursor.execute(CREATE_TABLE_SQL)
-        for statement in CREATE_INDICES_SQL:
-            cursor.execute(statement)
+        _ensure_schema(connection)
 
-        cursor.executemany(
-            """
-            INSERT OR REPLACE INTO books (
-                id, title, price, currency, rating, availability, category,
-                product_page_url, image_url, description, upc, stock
-            ) VALUES (
-                :id, :title, :price, :currency, :rating, :availability, :category,
-                :product_page_url, :image_url, :description, :upc, :stock
+        records = list(rows)
+        if records:
+            cursor = connection.cursor()
+            cursor.executemany(
+                """
+                INSERT OR REPLACE INTO books (
+                    id, title, price, currency, rating, availability, category,
+                    product_page_url, image_url, description, upc, stock
+                ) VALUES (
+                    :id, :title, :price, :currency, :rating, :availability, :category,
+                    :product_page_url, :image_url, :description, :upc, :stock
+                )
+                """,
+                records,
             )
-            """,
-            list(rows),
-        )
         connection.commit()
+
+
+def _ensure_schema(connection: sqlite3.Connection) -> None:
+    cursor = connection.cursor()
+    cursor.execute(CREATE_TABLE_SQL)
+    for statement in CREATE_INDICES_SQL:
+        cursor.execute(statement)
+
+    cursor.execute(CREATE_PREDICTIONS_TABLE_SQL)
+    for statement in CREATE_PREDICTIONS_INDICES_SQL:
+        cursor.execute(statement)
+    connection.commit()

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import Iterator, Optional
+from datetime import datetime
+from typing import Any, Dict, Iterator, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,6 +51,34 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             yield connection
         finally:
             connection.close()
+
+    def _build_feature_vector(book: Dict[str, Any]) -> Dict[str, Any]:
+        title = (book.get("title") or "").strip()
+        category = (book.get("category") or "").strip()
+        description = (book.get("description") or "").strip()
+        availability = (book.get("availability") or "").strip()
+        availability_lower = availability.lower()
+        is_available = "unavailable" not in availability_lower and (
+            "in stock" in availability_lower or "available" in availability_lower
+        )
+        stock_raw = book.get("stock")
+        stock_value = int(stock_raw) if stock_raw is not None else None
+        return {
+            "book_id": int(book["id"]),
+            "title": title,
+            "category": category,
+            "price": float(book.get("price", 0.0) or 0.0),
+            "stock": stock_value,
+            "is_available": is_available,
+            "availability": availability,
+            "title_length": len(title),
+            "description_length": len(description),
+        }
+
+    def _build_training_sample(book: Dict[str, Any]) -> Dict[str, Any]:
+        features = _build_feature_vector(book)
+        features.update({"target_rating": int(book.get("rating", 0) or 0)})
+        return features
 
     @app.get(f"{settings.api_prefix}/health", response_model=schemas.HealthStatus)
     def health(db: sqlite3.Connection = Depends(get_db)) -> schemas.HealthStatus:
@@ -173,6 +202,51 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     def stats_categories(db: sqlite3.Connection = Depends(get_db)) -> schemas.CategoryStatsCollection:
         stats = [schemas.CategoryStats(**row) for row in repositories.stats_by_category(db)]
         return schemas.CategoryStatsCollection(total=len(stats), items=stats)
+
+    @app.get(
+        f"{settings.api_prefix}/ml/features",
+        response_model=schemas.FeatureCollection,
+        summary="Feature vectors prepared for machine learning pipelines",
+    )
+    def ml_features(db: sqlite3.Connection = Depends(get_db)) -> schemas.FeatureCollection:
+        books = repositories.get_all_books(db)
+        feature_items = [schemas.FeatureVector(**_build_feature_vector(book)) for book in books]
+        return schemas.FeatureCollection(total=len(feature_items), items=feature_items)
+
+    @app.get(
+        f"{settings.api_prefix}/ml/training-data",
+        response_model=schemas.TrainingDataset,
+        summary="Dataset including target labels for supervised learning",
+    )
+    def ml_training_data(db: sqlite3.Connection = Depends(get_db)) -> schemas.TrainingDataset:
+        books = repositories.get_all_books(db)
+        training_items = [schemas.TrainingSample(**_build_training_sample(book)) for book in books]
+        return schemas.TrainingDataset(total=len(training_items), items=training_items)
+
+    @app.post(
+        f"{settings.api_prefix}/ml/predictions",
+        response_model=schemas.PredictionResponse,
+        status_code=201,
+        summary="Persist outputs produced by external ML models",
+    )
+    def ml_store_predictions(
+        request: schemas.PredictionRequest,
+        db: sqlite3.Connection = Depends(get_db),
+    ) -> schemas.PredictionResponse:
+        if not request.inputs:
+            raise HTTPException(status_code=422, detail="inputs must not be empty")
+
+        if len(request.inputs) != len(request.predictions):
+            raise HTTPException(status_code=422, detail="inputs and predictions must have the same length")
+
+        result = repositories.store_prediction_record(db, request.model_dump())
+        created_at = datetime.fromisoformat(result["created_at"])
+        return schemas.PredictionResponse(
+            id=result["id"],
+            model_name=request.model_name,
+            model_version=request.model_version,
+            created_at=created_at,
+        )
 
     return app
 

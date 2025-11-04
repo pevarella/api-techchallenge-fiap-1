@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi.testclient import TestClient
 
 
@@ -57,3 +59,42 @@ def test_price_range_filter(client: TestClient) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert {book["id"] for book in payload} == {1, 2}
+
+
+def test_ml_features_endpoint(client: TestClient) -> None:
+    response = client.get("/api/v1/ml/features")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 3
+    assert len(payload["items"]) == 3
+    first = payload["items"][0]
+    assert first["book_id"] == 1
+    assert first["is_available"] is True
+    assert first["title_length"] == len("Deep Learning with Python")
+
+
+def test_ml_training_data_endpoint(client: TestClient) -> None:
+    response = client.get("/api/v1/ml/training-data")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 3
+    assert all(item["target_rating"] >= 0 for item in payload["items"])
+
+
+def test_ml_predictions_endpoint(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/ml/predictions",
+        json={
+            "model_name": "baseline-recommender",
+            "model_version": "1.0.0",
+            "inputs": [{"book_id": 1, "features": {"price": 45.99}}],
+            "predictions": [{"score": 0.87}],
+            "metadata": {"pipeline": "notebook"},
+        },
+    )
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["model_name"] == "baseline-recommender"
+    assert payload["model_version"] == "1.0.0"
+    assert payload["id"] > 0
+    datetime.fromisoformat(payload["created_at"])

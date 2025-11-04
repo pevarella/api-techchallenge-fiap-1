@@ -9,6 +9,7 @@ Pipeline completo para captura, processamento e disponibilização dos dados de 
 - **API pública FastAPI**: endpoints RESTful versionados com documentação automática Swagger.
 - **Insights prontos**: estatísticas globais e por categoria para facilitar explorações rápidas.
 - **Arquitetura escalável**: componentes desacoplados prontos para evoluir com novas fontes e modelos de recomendação.
+- **Pronto para ML**: endpoints de features, dataset rotulado e logging de predições para alimentar experimentos.
 
 ## Estrutura do Projeto
 
@@ -109,6 +110,9 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 | GET | `/api/v1/stats/categories` | Estatísticas agregadas por categoria |
 | GET | `/api/v1/books/top-rated?limit=10` | Livros com melhor avaliação |
 | GET | `/api/v1/books/price-range?min=...&max=...` | Filtra por faixa de preço |
+| GET | `/api/v1/ml/features` | Vetores de features prontos para engenharia de atributos |
+| GET | `/api/v1/ml/training-data` | Dataset supervisionado incluindo rótulos de rating |
+| POST | `/api/v1/ml/predictions` | Persistência de resultados gerados por modelos externos |
 
 ### Exemplo de chamada
 

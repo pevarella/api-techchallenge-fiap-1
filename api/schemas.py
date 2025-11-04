@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from datetime import datetime
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -58,3 +59,44 @@ class CategoryStats(BaseModel):
 class CategoryStatsCollection(BaseModel):
     total: int
     items: list[CategoryStats]
+
+
+class FeatureVector(BaseModel):
+    book_id: int
+    title: str
+    category: str
+    price: float
+    stock: Optional[int]
+    is_available: bool
+    availability: str
+    title_length: int
+    description_length: int
+
+
+class FeatureCollection(BaseModel):
+    total: int
+    items: list[FeatureVector]
+
+
+class TrainingSample(FeatureVector):
+    target_rating: int
+
+
+class TrainingDataset(BaseModel):
+    total: int
+    items: list[TrainingSample]
+
+
+class PredictionRequest(BaseModel):
+    model_name: str = Field(min_length=1)
+    model_version: str = Field(min_length=1)
+    inputs: list[dict[str, Any]] = Field(default_factory=list, min_length=1)
+    predictions: list[Any] = Field(default_factory=list, min_length=1)
+    metadata: Optional[dict[str, Any]] = None
+
+
+class PredictionResponse(BaseModel):
+    id: int
+    model_name: str
+    model_version: str
+    created_at: datetime

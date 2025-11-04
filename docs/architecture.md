@@ -5,17 +5,18 @@
 ```
 ┌──────────┐     ┌────────────┐     ┌───────────┐     ┌──────────────┐
 │  Source  │     │ Ingestion  │     │ Storage   │     │ Serving/API  │
-│ (Books   ├────►│ Scraper    ├────►│ CSV +     ├────►│ FastAPI +    │
-│  to Scrape)│   │ (scripts/  │     │ SQLite    │     │ Uvicorn      │
-└──────────┘     │ scrape_    │     │ (data/)   │     │ (api/main.py)│
-                  │ books.py) │     └────┬──────┘     └────┬─────────┘
-                  └────┬──────┘          │               ▼
-                       │                 │        ┌─────────────┐
-                       ▼                 │        │ Consumers   │
-                ┌─────────────┐          │        │ (Data Sci,  │
-                │ Data Quality│◄─────────┘        │ ML Pipelines│
-                │ & Transform │                   │ Apps, Dash) │
-                └─────────────┘                   └─────────────┘
+│ (Books   ├────►│ Scraper    ├────►│ CSV +     ├────►│ FastAPI      │
+│  to Scrape)│   │ (scripts/  │     │ SQLite    │     │ (/api/v1 &   │
+└──────────┘     │ scrape_    │     │ (data/)   │     │  /ml/*)      │
+                  │ books.py) │     └────┬──────┘     │ Uvicorn      │
+                  └────┬──────┘          │             └────┬─────────┘
+                       │                 │                  ▼
+                       ▼                 │           ┌─────────────┐
+                ┌─────────────┐          │           │ Consumers   │
+                │ Data Quality│◄─────────┘           │ (Data Sci,  │
+                │ & Transform │                      │ ML Pipelines│
+                └─────────────┘                      │ Apps, Dash) │
+                                                     └─────────────┘
 ```
 
 - **Ingestão**: `scripts/scrape_books.py` executa o web scraping categorizado, normalizando campos e gerando `data/books_raw.csv`.
@@ -30,7 +31,7 @@
 | Scraping | `requests`, `BeautifulSoup` | Captura dados do site, lida com paginação e normaliza metadados |
 | Data Lake Local | CSV | Fonte bruta versionável, fácil reprocessamento |
 | Banco Operacional | SQLite | Persistência leve, consultas rápidas e empacotamento simples |
-| API | FastAPI, Pydantic, Uvicorn | Exposição pública com documentação automática e validação de entrada |
+| API | FastAPI, Pydantic, Uvicorn | Exposição pública com documentação automática, coleção `/api/v1/*` e rotas ML `/api/v1/ml/*` |
 | Observabilidade | Logs estruturados (stdout) | Acompanhar processo de scraping e healthcheck da API |
 
 ## Escalabilidade & Evolução
@@ -49,7 +50,7 @@
 ## Integração com Modelos de ML
 
 - **Treino Offline**: job semanal baixa CSV/SQLite, gera features e treina modelo (ex.: LightFM, embeddings BERT) versionado no MLflow.
-- **Serviço Online**: API atual pode ser estendida com novos endpoints (ex.: `/api/v1/recommendations?user_id=...`) consumindo um modelo deployado.
+- **Serviço Online**: API oferece `/api/v1/ml/features`, `/api/v1/ml/training-data` e `/api/v1/ml/predictions`, além de permitir extensões como `/api/v1/recommendations?user_id=...` para consumir modelos deployados.
 - **Feature Store**: migração gradual para Hopsworks/Feast com as mesmas entidades (livros, categorias, preços).
 
 ## Riscos e Mitigações
