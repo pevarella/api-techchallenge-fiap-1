@@ -1,5 +1,15 @@
 # Tech Challenge – Books Data Platform
 
+**Link Deploy - API:** https://dashboard.render.com/web/srv-d44me6v5r7bs73b0q5sg
+
+**Link Deploy - Dashboard Monitoramento:** https://tech-challenge-books-dashboard-96v3.onrender.com/
+
+**Link Vídeo Apresentação:**
+
+**Diagrama Visual:** [Arquitetura Macro](docs/diagrama_macro.png)
+
+**Documentação:** *Abaixo*
+
 Pipeline completo para captura, processamento e disponibilização dos dados de livros do site [books.toscrape.com](https://books.toscrape.com/), pensado para apoiar times de Ciência de Dados e Machine Learning.
 
 ## Visão Geral
@@ -182,6 +192,7 @@ curl http://localhost:8000/api/v1/ml/features \
   ```
   - Configure `API_BASE_URL` (default `http://localhost:8000`) e `DASHBOARD_REFRESH_SECONDS` conforme necessidade.
   - Mostra tabela de requisições por rota, histogramas de latência e trecho bruto das métricas coletadas.
+  - Versão publicada em produção: https://dashboard.render.com/web/srv-d44p3ujipnbc73aohi8g.
 
 ## Testes Automatizados
 
@@ -222,16 +233,6 @@ Arquivo `render.yaml` incluso para deploy automatizado via Infrastructure as Cod
 2. Persistir histórico e variação de preço em um Data Lake.
 3. Expor endpoints analíticos adicionais (ex.: ranking por categoria, sugestões personalizadas).
 4. Conectar a pipelines de ML (feature store, treinamento e deploy de recomendadores).
-
-## Vídeo de Apresentação
-
-Sugestão de roteiro (3–12 minutos):
-
-1. Contextualização do problema e requisitos.
-2. Visão geral do pipeline (usar o diagrama em `docs/architecture.md`).
-3. Execução rápida do scraper + build do banco localmente.
-4. Demonstração da API em produção (Swagger ou `curl`).
-5. Destaque das boas práticas (estrutura modular, testes, versionamento).
 
 ---
 
