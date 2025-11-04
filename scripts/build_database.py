@@ -8,6 +8,10 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from api.config import Settings
 from api.database import ensure_database
 
