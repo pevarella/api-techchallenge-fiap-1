@@ -3,12 +3,12 @@
 ## Visão de Alto Nível
 
 ```
-┌──────────┐     ┌────────────┐     ┌───────────┐     ┌──────────────┐
-│  Source  │     │ Ingestion  │     │ Storage   │     │ Serving/API  │
-│ (Books   ├────►│ Scraper    ├────►│ CSV +     ├────►│ FastAPI      │
-│  to Scrape)│   │ (scripts/  │     │ SQLite    │     │ (/api/v1 &   │
-└──────────┘     │ scrape_    │     │ (data/)   │     │  /ml/*)      │
-                  │ books.py) │     └────┬──────┘     │ Auth JWT     │
+┌──────────┐     ┌────────────┐     ┌───────────┐     ┌──────────────┐        ┌─────────────────────┐
+│  Source  │     │ Ingestion  │     │ Storage   │     │ Serving/API  │        │ Observability        │
+│ (Books   ├────►│ Scraper    ├────►│ CSV +     ├────►│ FastAPI      ├────────►│ Logs JSON +          │
+│  to Scrape)│   │ (scripts/  │     │ SQLite    │     │ (/api/v1 &   │        │ Prometheus /metrics   │
+└──────────┘     │ scrape_    │     │ (data/)   │     │  /ml/*)      │        │ Streamlit Dashboard  │
+                  │ books.py) │     └────┬──────┘     │ Auth JWT     │        └─────────────────────┘
                   └────┬──────┘          │             │ Uvicorn      │
                        │                 │             └────┬─────────┘
                        ▼                 │                  ▼
@@ -34,6 +34,7 @@
 | Banco Operacional | SQLite | Persistência leve, consultas rápidas e empacotamento simples |
 | API | FastAPI, Pydantic, Uvicorn | Exposição pública com documentação automática, coleção `/api/v1/*` e rotas ML `/api/v1/ml/*` |
 | Autenticação | JWT (python-jose), FastAPI | Protege rotas sensíveis com tokens de acesso/refresh |
+| Observabilidade | Logs JSON, Prometheus, Streamlit | Acompanha tráfego, latência e saúde da API em tempo real |
 | Observabilidade | Logs estruturados (stdout) | Acompanhar processo de scraping e healthcheck da API |
 
 ## Escalabilidade & Evolução
@@ -52,7 +53,7 @@
 ## Integração com Modelos de ML
 
 - **Treino Offline**: job semanal baixa CSV/SQLite, gera features e treina modelo (ex.: LightFM, embeddings BERT) versionado no MLflow.
-- **Serviço Online**: API oferece `/api/v1/ml/features`, `/api/v1/ml/training-data` e `/api/v1/ml/predictions`, autenticados via JWT (`/api/v1/auth/login` e `/api/v1/auth/refresh`), além de permitir extensões como `/api/v1/recommendations?user_id=...` para consumir modelos deployados.
+- **Serviço Online**: API oferece `/api/v1/ml/features`, `/api/v1/ml/training-data` e `/api/v1/ml/predictions`, autenticados via JWT (`/api/v1/auth/login` e `/api/v1/auth/refresh`), além de permitir extensões como `/api/v1/recommendations?user_id=...` para consumir modelos deployados. As métricas estão disponíveis em `/metrics` e alimentam o dashboard em Streamlit.
 - **Feature Store**: migração gradual para Hopsworks/Feast com as mesmas entidades (livros, categorias, preços).
 
 ## Riscos e Mitigações

@@ -11,6 +11,7 @@ Pipeline completo para captura, processamento e disponibilização dos dados de 
 - **Arquitetura escalável**: componentes desacoplados prontos para evoluir com novas fontes e modelos de recomendação.
 - **Pronto para ML**: endpoints de features, dataset rotulado e logging de predições para alimentar experimentos.
 - **Autenticação JWT**: rotas sensíveis protegidas com tokens de acesso e refresh configuráveis.
+- **Monitoramento e Analytics**: logs estruturados, métricas Prometheus e dashboard Streamlit pronto para uso.
 
 ## Estrutura do Projeto
 
@@ -116,6 +117,7 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 | POST | `/api/v1/ml/predictions` | Persistência de resultados gerados por modelos externos |
 | POST | `/api/v1/auth/login` | Obter par de tokens (access/refresh) |
 | POST | `/api/v1/auth/refresh` | Renovar o par de tokens |
+| GET | `/metrics` | Exposição das métricas Prometheus para scraping |
 
 ### Exemplo de chamada
 
@@ -169,6 +171,17 @@ AUTH_TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
 curl http://localhost:8000/api/v1/ml/features \
   -H "Authorization: Bearer ${AUTH_TOKEN}"
 ```
+
+## Monitoramento & Analytics
+
+- **Logs estruturados**: cada requisição HTTP gera um JSON com `method`, `path`, `status_code`, `duration_ms` e metadados adicionais (emitidos pelo logger `api.requests`). Direcione stdout para sua stack de observabilidade preferida.
+- **Métricas Prometheus**: endpoint `/metrics` expõe contadores e histogramas (`http_requests_total`, `http_request_duration_seconds`, etc.) instrumentados automaticamente via `prometheus-fastapi-instrumentator`.
+- **Dashboard Streamlit**:
+  ```powershell
+  streamlit run dashboard/app.py
+  ```
+  - Configure `API_BASE_URL` (default `http://localhost:8000`) e `DASHBOARD_REFRESH_SECONDS` conforme necessidade.
+  - Mostra tabela de requisições por rota, histogramas de latência e trecho bruto das métricas coletadas.
 
 ## Testes Automatizados
 

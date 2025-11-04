@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import repositories, schemas
 from .auth import authenticate_user, create_token_pair, require_access_token, verify_refresh_token
+from .monitoring import request_logging_middleware, setup_metrics
 from .config import Settings, get_settings
 from .database import ensure_database, get_connection
 
@@ -32,6 +33,9 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     # Ensure dependency-injected settings use the same instance provided at startup.
     app.dependency_overrides[get_settings] = lambda: settings
+
+    app.middleware("http")(request_logging_middleware)
+    setup_metrics(app)
 
     app.add_middleware(
         CORSMiddleware,

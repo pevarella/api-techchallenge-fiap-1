@@ -137,6 +137,13 @@ def test_ml_predictions_endpoint(client: TestClient) -> None:
     datetime.fromisoformat(payload["created_at"])
 
 
+def test_metrics_endpoint(client: TestClient) -> None:
+    client.get("/api/v1/health")
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert "http_requests_total" in response.text
+
+
 def _obtain_access_token(client: TestClient) -> Dict[str, str]:
     response = client.post(
         "/api/v1/auth/login",
