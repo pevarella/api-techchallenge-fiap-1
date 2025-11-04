@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Dict
 
 from fastapi.testclient import TestClient
 
@@ -61,8 +62,41 @@ def test_price_range_filter(client: TestClient) -> None:
     assert {book["id"] for book in payload} == {1, 2}
 
 
-def test_ml_features_endpoint(client: TestClient) -> None:
+def test_ml_features_requires_auth(client: TestClient) -> None:
     response = client.get("/api/v1/ml/features")
+    assert response.status_code == 401
+
+
+def test_auth_login_and_refresh(client: TestClient) -> None:
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"username": "test-user", "password": "strong-pass"},
+    )
+    assert login_response.status_code == 200
+    tokens = login_response.json()
+    assert tokens["token_type"] == "bearer"
+    assert tokens["access_token"]
+    assert tokens["refresh_token"]
+
+    refresh_response = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": tokens["refresh_token"]},
+    )
+    assert refresh_response.status_code == 200
+    refreshed = refresh_response.json()
+    assert refreshed["access_token"]
+    assert refreshed["refresh_token"]
+
+
+def test_ml_features_endpoint(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"username": "test-user", "password": "strong-pass"},
+    )
+    token = response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = client.get("/api/v1/ml/features", headers=headers)
     assert response.status_code == 200
     payload = response.json()
     assert payload["total"] == 3
@@ -74,7 +108,8 @@ def test_ml_features_endpoint(client: TestClient) -> None:
 
 
 def test_ml_training_data_endpoint(client: TestClient) -> None:
-    response = client.get("/api/v1/ml/training-data")
+    token = _obtain_access_token(client)
+    response = client.get("/api/v1/ml/training-data", headers=token)
     assert response.status_code == 200
     payload = response.json()
     assert payload["total"] == 3
@@ -82,6 +117,7 @@ def test_ml_training_data_endpoint(client: TestClient) -> None:
 
 
 def test_ml_predictions_endpoint(client: TestClient) -> None:
+    token = _obtain_access_token(client)
     response = client.post(
         "/api/v1/ml/predictions",
         json={
@@ -91,6 +127,7 @@ def test_ml_predictions_endpoint(client: TestClient) -> None:
             "predictions": [{"score": 0.87}],
             "metadata": {"pipeline": "notebook"},
         },
+        headers=token,
     )
     assert response.status_code == 201
     payload = response.json()
@@ -98,3 +135,13 @@ def test_ml_predictions_endpoint(client: TestClient) -> None:
     assert payload["model_version"] == "1.0.0"
     assert payload["id"] > 0
     datetime.fromisoformat(payload["created_at"])
+
+
+def _obtain_access_token(client: TestClient) -> Dict[str, str]:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"username": "test-user", "password": "strong-pass"},
+    )
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}

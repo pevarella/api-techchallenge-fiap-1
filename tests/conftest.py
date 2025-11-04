@@ -94,6 +94,12 @@ def fixture_client(tmp_path: Path) -> Iterator[TestClient]:
         csv_filename=csv_path.name,
         db_filename=db_path.name,
         rebuild_db_on_startup=False,
+        auth_username="test-user",
+        auth_password="strong-pass",
+        jwt_secret_key="test-secret",
+        jwt_refresh_secret_key="test-refresh-secret",
+        jwt_access_token_exp_minutes=5,
+        jwt_refresh_token_exp_minutes=60,
     )
 
     ensure_database(settings)

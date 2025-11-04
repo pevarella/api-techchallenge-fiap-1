@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     rebuild_db_on_startup: bool = False
     default_page_size: int = 50
     max_page_size: int = 200
+    auth_username: str = "admin"
+    auth_password: str = "changeme"
+    jwt_secret_key: str = Field(default="change-me-please", repr=False)
+    jwt_refresh_secret_key: str = Field(default="change-me-refresh", repr=False)
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_exp_minutes: int = 30
+    jwt_refresh_token_exp_minutes: int = 60 * 24 * 7
 
     model_config = SettingsConfigDict(
         env_prefix="BOOKS_",

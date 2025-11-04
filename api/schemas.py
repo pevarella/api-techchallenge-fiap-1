@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -100,3 +100,18 @@ class PredictionResponse(BaseModel):
     model_name: str
     model_version: str
     created_at: datetime
+
+
+class AuthCredentials(BaseModel):
+    username: str
+    password: str
+
+
+class TokenPair(BaseModel):
+    token_type: Literal["bearer"] = "bearer"
+    access_token: str
+    refresh_token: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str

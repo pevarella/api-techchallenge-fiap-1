@@ -7,10 +7,11 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, Iterator, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import repositories, schemas
+from .auth import authenticate_user, create_token_pair, require_access_token, verify_refresh_token
 from .config import Settings, get_settings
 from .database import ensure_database, get_connection
 
@@ -28,6 +29,9 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         docs_url=f"{settings.api_prefix}/docs",
         redoc_url=f"{settings.api_prefix}/redoc",
     )
+
+    # Ensure dependency-injected settings use the same instance provided at startup.
+    app.dependency_overrides[get_settings] = lambda: settings
 
     app.add_middleware(
         CORSMiddleware,
@@ -51,6 +55,32 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             yield connection
         finally:
             connection.close()
+
+    @app.post(
+        f"{settings.api_prefix}/auth/login",
+        response_model=schemas.TokenPair,
+        summary="Obter token JWT de acesso",
+    )
+    def auth_login(credentials: schemas.AuthCredentials) -> schemas.TokenPair:
+        if not authenticate_user(credentials.username, credentials.password, settings):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+        access_token, refresh_token = create_token_pair(credentials.username, settings)
+        return schemas.TokenPair(access_token=access_token, refresh_token=refresh_token)
+
+    @app.post(
+        f"{settings.api_prefix}/auth/refresh",
+        response_model=schemas.TokenPair,
+        summary="Renovar tokens JWT",
+    )
+    def auth_refresh(request: schemas.RefreshRequest) -> schemas.TokenPair:
+        payload = verify_refresh_token(request.refresh_token, settings)
+        subject = payload.get("sub")
+        if not subject:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+        access_token, refresh_token = create_token_pair(str(subject), settings)
+        return schemas.TokenPair(access_token=access_token, refresh_token=refresh_token)
 
     def _build_feature_vector(book: Dict[str, Any]) -> Dict[str, Any]:
         title = (book.get("title") or "").strip()
@@ -208,7 +238,10 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         response_model=schemas.FeatureCollection,
         summary="Feature vectors prepared for machine learning pipelines",
     )
-    def ml_features(db: sqlite3.Connection = Depends(get_db)) -> schemas.FeatureCollection:
+    def ml_features(
+        db: sqlite3.Connection = Depends(get_db),
+        _: Dict[str, Any] = Depends(require_access_token),
+    ) -> schemas.FeatureCollection:
         books = repositories.get_all_books(db)
         feature_items = [schemas.FeatureVector(**_build_feature_vector(book)) for book in books]
         return schemas.FeatureCollection(total=len(feature_items), items=feature_items)
@@ -218,7 +251,10 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         response_model=schemas.TrainingDataset,
         summary="Dataset including target labels for supervised learning",
     )
-    def ml_training_data(db: sqlite3.Connection = Depends(get_db)) -> schemas.TrainingDataset:
+    def ml_training_data(
+        db: sqlite3.Connection = Depends(get_db),
+        _: Dict[str, Any] = Depends(require_access_token),
+    ) -> schemas.TrainingDataset:
         books = repositories.get_all_books(db)
         training_items = [schemas.TrainingSample(**_build_training_sample(book)) for book in books]
         return schemas.TrainingDataset(total=len(training_items), items=training_items)
@@ -231,7 +267,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     )
     def ml_store_predictions(
         request: schemas.PredictionRequest,
-        db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(get_db),
+    _: Dict[str, Any] = Depends(require_access_token),
     ) -> schemas.PredictionResponse:
         if not request.inputs:
             raise HTTPException(status_code=422, detail="inputs must not be empty")

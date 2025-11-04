@@ -10,6 +10,7 @@ Pipeline completo para captura, processamento e disponibilização dos dados de 
 - **Insights prontos**: estatísticas globais e por categoria para facilitar explorações rápidas.
 - **Arquitetura escalável**: componentes desacoplados prontos para evoluir com novas fontes e modelos de recomendação.
 - **Pronto para ML**: endpoints de features, dataset rotulado e logging de predições para alimentar experimentos.
+- **Autenticação JWT**: rotas sensíveis protegidas com tokens de acesso e refresh configuráveis.
 
 ## Estrutura do Projeto
 
@@ -113,6 +114,8 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 | GET | `/api/v1/ml/features` | Vetores de features prontos para engenharia de atributos |
 | GET | `/api/v1/ml/training-data` | Dataset supervisionado incluindo rótulos de rating |
 | POST | `/api/v1/ml/predictions` | Persistência de resultados gerados por modelos externos |
+| POST | `/api/v1/auth/login` | Obter par de tokens (access/refresh) |
+| POST | `/api/v1/auth/refresh` | Renovar o par de tokens |
 
 ### Exemplo de chamada
 
@@ -142,6 +145,29 @@ curl http://localhost:8000/api/v1/books?limit=5
     }
   ]
 }
+```
+
+## Autenticação JWT
+
+- Credenciais padrão (sobreponha via variáveis de ambiente `BOOKS_AUTH_USERNAME`/`BOOKS_AUTH_PASSWORD`): `admin` / `changeme`.
+- Fluxo:
+  1. `POST /api/v1/auth/login` com `{ "username": "admin", "password": "changeme" }` ⇒ resposta com `access_token` e `refresh_token`.
+  2. Use `Authorization: Bearer <access_token>` ao chamar rotas protegidas (`/api/v1/ml/*`).
+  3. Quando necessário, renove com `POST /api/v1/auth/refresh` enviando `{ "refresh_token": "..." }`.
+
+### Exemplo no `curl`
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"changeme"}'
+
+AUTH_TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"changeme"}' | jq -r '.access_token')
+
+curl http://localhost:8000/api/v1/ml/features \
+  -H "Authorization: Bearer ${AUTH_TOKEN}"
 ```
 
 ## Testes Automatizados
