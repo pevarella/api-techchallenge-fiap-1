@@ -4,7 +4,7 @@
 
 **Link Deploy - Dashboard Monitoramento:** https://tech-challenge-books-dashboard-96v3.onrender.com/
 
-**Link Vídeo Apresentação:**
+**Link Vídeo Apresentação:** https://www.youtube.com/watch?v=82BV4F2m-Uk
 
 **Diagrama Visual:** [Arquitetura Macro](docs/diagrama_macro.png)
 
@@ -634,3 +634,4 @@ Arquivo `render.yaml` incluso para deploy automatizado via Infrastructure as Cod
 ---
 
 Projeto desenvolvido como parte do Tech Challenge FIAP – fase de Machine Learning Engineering.
+F
